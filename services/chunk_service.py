@@ -1,7 +1,8 @@
 import os
 from fastapi import HTTPException
 import aiohttp
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+import json
 
 class ChunkInsight(BaseModel):
     chunk_id: str
@@ -40,13 +41,19 @@ async def get_chunks_and_insights(input_data: TextInput, overview: str) -> list[
             async with session.post(full_endpoint, json=chunking_payload) as response:
                 if response.status != 200:
                     raise HTTPException(status_code=500, detail=f"LLM API error during chunking: {response.status}")
-                chunks = await response.json()  # Expecting JSON array of strings
+                response_data = await response.json()  # Expecting a JSON object
+                
+                # Log or print the raw response for debugging
+                print("LLM API Response for chunking:", response_data)
 
-                print("LLM API Response for chunking:", chunks)
+                # Extract and parse the response to get the actual list of chunks
+                try:
+                    chunks = json.loads(response_data['response'])  # Assuming 'response' contains the string of JSON array
+                except (KeyError, json.JSONDecodeError):
+                    raise HTTPException(status_code=500, detail="LLM did not return a valid list of chunks")
                 
                 if not isinstance(chunks, list):
                     raise HTTPException(status_code=500, detail="LLM did not return a valid list of chunks")
-    
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to chunk text: {str(e)}")
 
@@ -77,16 +84,19 @@ async def get_chunks_and_insights(input_data: TextInput, overview: str) -> list[
                         # Handle unexpected response format
                         insight = str(insight_response)
                     
-                    # Include the overview in each chunk-insight pair
-                    chunk_insights.append(
-                        ChunkInsight(
-                            chunk_id=f"c{idx}",
-                            text=chunk,
-                            insight_id=f"i{idx}",
-                            summary=insight,
-                            overview=overview
+                    # Ensure we're passing the correct data for Pydantic validation
+                    try:
+                        chunk_insights.append(
+                            ChunkInsight(
+                                chunk_id=f"c{idx}",
+                                text=chunk,
+                                insight_id=f"i{idx}",
+                                summary=insight,
+                                overview=overview
+                            )
                         )
-                    )
+                    except ValidationError as e:
+                        raise HTTPException(status_code=500, detail=f"Error validating chunk insight: {str(e)}")
             
             except Exception as e:
                 chunk_insights.append(

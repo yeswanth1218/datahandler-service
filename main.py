@@ -37,7 +37,8 @@ async def process_text(input_data: TextInput):
     chunks = await get_chunks_and_insights(input_data, overview)
     
     # Return the combined response
-    return LLMResponse(chunks=chunks)
+    return LLMResponse(chunks=[chunk.dict() for chunk in chunks]) 
+    #return LLMResponse(chunks=chunks)
 
 if __name__ == "__main__":
     port = int(os.getenv('PORT', 8600))
