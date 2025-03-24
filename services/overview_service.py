@@ -30,7 +30,7 @@ async def get_overview(input_data: TextInput) -> str:
                 if response.status != 200:
                     raise HTTPException(status_code=response.status, detail=f"LLM API error during overview: {response.status}")
                 # Assuming the response is plain text; adjust if it's JSON
-                overview = await response.text()
-                return overview.strip()
+                overview = await response.json()
+                return overview
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error in get_overview: {str(e)}")

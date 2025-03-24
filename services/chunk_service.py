@@ -49,8 +49,8 @@ async def get_chunks_and_insights(input_data: TextInput, overview: str) -> list[
                 # Extract and parse the response to get the actual list of chunks
                 try:
                     chunks = json.loads(response_data['response'])  # Assuming 'response' contains the string of JSON array
-                except (KeyError, json.JSONDecodeError):
-                    raise HTTPException(status_code=500, detail="LLM did not return a valid list of chunks")
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=e)
                 
                 if not isinstance(chunks, list):
                     raise HTTPException(status_code=500, detail="LLM did not return a valid list of chunks")
@@ -75,7 +75,7 @@ async def get_chunks_and_insights(input_data: TextInput, overview: str) -> list[
                 async with session.post(full_endpoint, json=summary_payload) as response:
                     if response.status != 200:
                         raise HTTPException(status_code=500, detail=f"LLM API error during summary: {response.status}")
-                    insight_response = await response.json()  # Now expecting JSON response
+                    insight_response = await response.json()  # Expecting JSON response
                     
                     # Extract summary from the JSON response
                     if isinstance(insight_response, dict) and "summary" in insight_response:
